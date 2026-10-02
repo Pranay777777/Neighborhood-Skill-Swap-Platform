@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_SECRET = "dev-only-change-me-dev-only-change-me"  # noqa: S105 - refused outside SQLite
@@ -21,6 +22,15 @@ class Settings(BaseSettings):
     mail_backend: str = "smtp"
     # Restore the demo accounts and their posts on every start (live demo, E2E).
     seed_demo: bool = False
+
+    @field_validator("database_url")
+    @classmethod
+    def use_psycopg3(cls, url: str) -> str:
+        """Hosted Postgres (Neon) hands out postgres:// or postgresql:// URLs; use psycopg 3."""
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        return url
 
 
 settings = Settings()

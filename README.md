@@ -3,6 +3,14 @@
 Neighbours post skills they can teach or want to learn, comment, and send private swap
 requests. React frontend (`project/`) and FastAPI backend (`backend/`).
 
+## Live demo
+
+Hosted on free tiers ([`render.yaml`](render.yaml): Render web service and static site, Neon
+Postgres). **The free API sleeps after 15 minutes idle, so the first request can take up to a
+minute**; after that it is fast. The live site has no outbound mail, so sign in with a demo
+account below; the verification and reset flows are exercised end to end locally and in CI
+against Mailpit.
+
 ## Demo accounts
 
 | Email | Password | Role |
