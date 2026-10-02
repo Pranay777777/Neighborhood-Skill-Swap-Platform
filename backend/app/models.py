@@ -58,6 +58,9 @@ class Skill(Base):
     comments: Mapped[list["Comment"]] = relationship(
         back_populates="skill", cascade="all, delete-orphan", order_by="Comment.id"
     )
+    requests: Mapped[list["SwapRequest"]] = relationship(
+        back_populates="skill", cascade="all, delete-orphan"
+    )
 
 
 class Comment(Base):
@@ -81,5 +84,5 @@ class SwapRequest(Base):
     message: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(10), default="pending")  # pending|accepted|declined
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    skill: Mapped[Skill] = relationship()
+    skill: Mapped[Skill] = relationship(back_populates="requests")
     requester: Mapped[User] = relationship()
