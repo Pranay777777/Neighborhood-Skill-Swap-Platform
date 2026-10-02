@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -91,7 +91,7 @@ def update_skill(
     return _skill_out(skill, user)
 
 
-@router.delete("/skills/{skill_id}", status_code=204)
+@router.delete("/skills/{skill_id}", status_code=204, response_class=Response)
 def delete_skill(
     skill_id: int, db: Session = Depends(get_db), user: User = Depends(verified_user)
 ) -> None:
@@ -114,7 +114,7 @@ def add_comment(
     return _comment_out(comment)
 
 
-@router.delete("/comments/{comment_id}", status_code=204)
+@router.delete("/comments/{comment_id}", status_code=204, response_class=Response)
 def delete_comment(
     comment_id: int, db: Session = Depends(get_db), user: User = Depends(verified_user)
 ) -> None:

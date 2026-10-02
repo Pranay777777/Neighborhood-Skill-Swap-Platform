@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -169,7 +169,7 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)) -> TokensOut:
     return _issue_tokens(db, user, family=row.family)
 
 
-@router.post("/logout", status_code=204)
+@router.post("/logout", status_code=204, response_class=Response)
 def logout(body: RefreshIn, db: Session = Depends(get_db)) -> None:
     row = db.scalar(
         select(RefreshToken).where(RefreshToken.token_hash == sha256(body.refresh_token))
@@ -195,7 +195,7 @@ def forgot_password(body: ForgotIn, db: Session = Depends(get_db)) -> dict:
     return {"detail": "If that email is registered, a reset link was sent."}  # same either way
 
 
-@router.post("/reset-password", status_code=204)
+@router.post("/reset-password", status_code=204, response_class=Response)
 def reset_password(body: ResetIn, db: Session = Depends(get_db)) -> None:
     user = _consume(db, body.token, "reset")
     user.password_hash = hash_password(body.new_password)

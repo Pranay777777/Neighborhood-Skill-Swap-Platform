@@ -1,9 +1,14 @@
 # Neighborhood Skill Swap
 
+[![CI](https://github.com/Pranay777777/Neighborhood-Skill-Swap-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranay777777/Neighborhood-Skill-Swap-Platform/actions/workflows/ci.yml)
+
 Neighbours post skills they can teach or want to learn, comment, and send private swap
 requests. React frontend (`project/`) and FastAPI backend (`backend/`).
 
 ## Live demo
+
+**[skillswap-web-xhfs.onrender.com](https://skillswap-web-xhfs.onrender.com)** · API docs:
+[skillswap-api-a5ee.onrender.com/docs](https://skillswap-api-a5ee.onrender.com/docs)
 
 Hosted on free tiers ([`render.yaml`](render.yaml): Render web service and static site, Neon
 Postgres). **The free API sleeps after 15 minutes idle, so the first request can take up to a
