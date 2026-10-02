@@ -175,3 +175,19 @@ def test_no_content_responses_have_no_body_or_content_type(client, world):
     assert r.status_code == 204
     assert r.content == b""
     assert "content-type" not in r.headers
+
+
+def test_skill_owner_cannot_delete_someone_elses_comment(client, world):
+    """Owning the skill does not make you the owner of comments on it."""
+    users, ids = world["users"], world["ids"]
+    theirs = client.post(
+        f"/skills/{ids['skill']}/comments",
+        headers=users["requester"],
+        json={"content": "Is Saturday possible?"},
+    ).json()["id"]
+    r = client.delete(f"/comments/{theirs}", headers=users["owner"])
+    assert r.status_code == 403
+    comments = client.get(f"/skills/{ids['skill']}").json()["comments"]
+    assert theirs in [c["id"] for c in comments]
+    # and the comment's author still can
+    assert client.delete(f"/comments/{theirs}", headers=users["requester"]).status_code == 204

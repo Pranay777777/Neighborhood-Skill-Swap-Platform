@@ -4,9 +4,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from .config import DEV_SECRET, Settings, settings
 from .db import Base, SessionLocal, engine
+from .ratelimit import limiter, too_many
 from .routes import auth, requests, skills
 from .seed import seed_demo
 
@@ -32,6 +34,8 @@ async def lifespan(_: FastAPI):
 log = logging.getLogger("api")
 
 app = FastAPI(title="Neighborhood Skill Swap API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, too_many)
 
 
 @app.middleware("http")

@@ -32,6 +32,11 @@ services:
       SWAP_APP_URL: http://localhost:8080
       SWAP_CORS_ORIGINS: http://localhost:8080
       SWAP_SEED_DEMO: "true"
+      # E2E runs register and sign in many times from one address; keep the limiter on
+      # but out of the way (its own tests live in backend/tests/test_ratelimit.py).
+      SWAP_RATE_LIMIT_LOGIN: 200/minute
+      SWAP_RATE_LIMIT_REGISTER: 200/minute
+      SWAP_RATE_LIMIT_FORGOT: 200/minute
     ports:
       - "8000:8000"
     healthcheck:
