@@ -4,8 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import DEV_SECRET, Settings, settings
-from .db import Base, engine
+from .db import Base, SessionLocal, engine
 from .routes import auth, requests, skills
+from .seed import seed_demo
 
 
 def check_secret(cfg: Settings) -> None:
@@ -20,6 +21,9 @@ def check_secret(cfg: Settings) -> None:
 async def lifespan(_: FastAPI):
     check_secret(settings)
     Base.metadata.create_all(engine)
+    if settings.seed_demo:
+        with SessionLocal() as db:
+            seed_demo(db)
     yield
 
 

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     mail_from: str = "Skill Swap <noreply@skillswap.local>"
     # "smtp" sends via SMTP (Mailpit in dev); "console" only logs the mail.
     mail_backend: str = "smtp"
+    # Restore the demo accounts and their posts on every start (live demo, E2E).
+    seed_demo: bool = False
 
 
 settings = Settings()

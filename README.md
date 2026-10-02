@@ -3,7 +3,39 @@
 Neighbours post skills they can teach or want to learn, comment, and send private swap
 requests. React frontend (`project/`) and FastAPI backend (`backend/`).
 
-## Run the backend
+## Demo accounts
+
+| Email | Password | Role |
+|---|---|---|
+| `demo.teacher@example.com` | `skillswap-demo-1` | offers Guitar Lessons and Vegetable Gardening |
+| `demo.learner@example.com` | `skillswap-demo-2` | wants Spanish Conversation |
+
+Both are verified, so they can post, comment and send swap requests straight away. Sign in
+as the learner, send a swap request on Guitar Lessons, then sign in as the teacher to accept
+it. The demo data is restored on every restart (`SWAP_SEED_DEMO=true`).
+
+## Run everything
+
+```bash
+docker compose up --build    # web http://localhost:8080 · API http://localhost:8000/docs · inbox http://localhost:8025
+```
+
+Postgres, the API, the web app and [Mailpit](https://mailpit.axllent.org/) (a local inbox for
+verification and reset mails). Nothing leaves your machine.
+
+## End-to-end tests
+
+Playwright drives the real UI against the compose stack and reads mails from Mailpit:
+demo sign-in, post, comment, delete, a private swap request, register → verify by email
+link, and password reset by email link (including the single-use check). CI runs it on every
+push against `docker compose`, never against the live deployment.
+
+```bash
+docker compose up -d --build --wait
+cd e2e && npm ci && npx playwright install chromium && npx playwright test
+```
+
+## Run the backend alone
 
 ```bash
 cd backend

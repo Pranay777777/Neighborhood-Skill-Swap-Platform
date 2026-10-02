@@ -1,7 +1,51 @@
+# Full stack for local runs and the Playwright E2E in CI:
+#   docker compose up --build    -> web http://localhost:8080, API http://localhost:8000,
+#                                   inbox http://localhost:8025
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: swap
+      POSTGRES_PASSWORD: swap-local-only
+      POSTGRES_DB: swap
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swap"]
+      interval: 2s
+      retries: 30
+
   mailpit:
-    # Local inbox for verification and reset mails: http://localhost:8025
+    # Local inbox for verification and reset mails
     image: axllent/mailpit:v1.27
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SWAP_DATABASE_URL: postgresql+psycopg://swap:swap-local-only@db:5432/swap
+      SWAP_JWT_SECRET: local-compose-secret-not-for-production-use
+      SWAP_SMTP_HOST: mailpit
+      SWAP_APP_URL: http://localhost:8080
+      SWAP_CORS_ORIGINS: http://localhost:8080
+      SWAP_SEED_DEMO: "true"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 2s
+      retries: 30
+
+  web:
+    build:
+      context: ./project
+      args:
+        VITE_API_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
