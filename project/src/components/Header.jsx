@@ -1,10 +1,20 @@
 import React from 'react';
-import { Users, Heart } from 'lucide-react';
+import { Users, Heart, LogOut } from 'lucide-react';
+import { useAuth } from '../auth';
 
 export const Header = () => {
+  const { user, logout } = useAuth();
   return (
     <header className="bg-white/80 backdrop-blur-sm border-b border-green-100 sticky top-0 z-10 shadow-sm">
       <div className="container mx-auto px-4 py-6">
+        {user && (
+          <div className="flex items-center justify-end gap-3 text-sm text-gray-700 mb-2">
+            <span>Signed in as <strong>{user.name}</strong></span>
+            <button onClick={logout} className="flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200">
+              <LogOut className="w-4 h-4" /> Sign out
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-center text-center">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-gradient-to-r from-green-500 to-blue-500 rounded-full">
@@ -17,7 +27,7 @@ export const Header = () => {
           </div>
         </div>
         <p className="text-gray-600 text-center text-lg max-w-2xl mx-auto">
-          Connect and Exchange Skills in Your Neighborhood! 
+          Connect and Exchange Skills in Your Neighborhood!
           <span className="block text-sm mt-1">Share what you know, learn what you need, build community together</span>
         </p>
       </div>

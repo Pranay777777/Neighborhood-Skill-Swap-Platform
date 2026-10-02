@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, User, Lightbulb, MessageSquare, Mail } from 'lucide-react';
+import { Plus, Lightbulb, MessageSquare, Mail } from 'lucide-react';
 
 export const AddSkillForm = ({ onAddSkill }) => {
   const [formData, setFormData] = useState({
-    name: '',
     skill: '',
     type: 'offer',
     description: '',
@@ -14,32 +13,25 @@ export const AddSkillForm = ({ onAddSkill }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.skill.trim() || !formData.description.trim()) {
+    if (!formData.skill.trim() || !formData.description.trim()) {
       return;
     }
 
     setIsSubmitting(true);
     
-    // Simulate a brief loading state for better UX
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    onAddSkill({
-      name: formData.name.trim(),
-      skill: formData.skill.trim(),
-      type: formData.type,
-      description: formData.description.trim(),
-      contact: formData.contact.trim() || undefined
-    });
-
-    setFormData({
-      name: '',
-      skill: '',
-      type: 'offer',
-      description: '',
-      contact: ''
-    });
-
-    setIsSubmitting(false);
+    try {
+      await onAddSkill({
+        skill: formData.skill.trim(),
+        type: formData.type,
+        description: formData.description.trim(),
+        contact: formData.contact.trim() || undefined
+      });
+      setFormData({ skill: '', type: 'offer', description: '', contact: '' });
+    } catch {
+      // the board shows the error; keep what was typed
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (field, value) => {
@@ -56,22 +48,7 @@ export const AddSkillForm = ({ onAddSkill }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-              <User className="w-4 h-4" />
-              Your Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="e.g., Ana Rodriguez"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
-              required
-            />
-          </div>
-
+        <div className="grid gap-6">
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <Lightbulb className="w-4 h-4" />
@@ -149,7 +126,7 @@ export const AddSkillForm = ({ onAddSkill }) => {
 
         <button
           type="submit"
-          disabled={isSubmitting || !formData.name.trim() || !formData.skill.trim() || !formData.description.trim()}
+          disabled={isSubmitting || !formData.skill.trim() || !formData.description.trim()}
           className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
         >
           {isSubmitting ? (

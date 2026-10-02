@@ -2,7 +2,7 @@ import React from 'react';
 import { SkillCard } from './SkillCard';
 import { Grid3X3, Sparkles } from 'lucide-react';
 
-export const SkillBoard = ({ skills, onAddComment }) => {
+export const SkillBoard = ({ skills, user, onAddComment, onDelete, onRequest }) => {
   const offers = skills.filter(skill => skill.type === 'offer');
   const requests = skills.filter(skill => skill.type === 'request');
 
@@ -34,8 +34,11 @@ export const SkillBoard = ({ skills, onAddComment }) => {
                 {offers.map(skill => (
                   <SkillCard 
                     key={skill.id} 
-                    skill={skill} 
+                    skill={skill}
+                    user={user}
                     onAddComment={onAddComment}
+                    onDelete={onDelete}
+                    onRequest={onRequest}
                   />
                 ))}
               </div>
@@ -52,8 +55,11 @@ export const SkillBoard = ({ skills, onAddComment }) => {
                 {requests.map(skill => (
                   <SkillCard 
                     key={skill.id} 
-                    skill={skill} 
+                    skill={skill}
+                    user={user}
                     onAddComment={onAddComment}
+                    onDelete={onDelete}
+                    onRequest={onRequest}
                   />
                 ))}
               </div>

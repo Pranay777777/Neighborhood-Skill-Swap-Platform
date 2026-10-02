@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { Send, User, Clock } from 'lucide-react';
 
-export const CommentSection = ({ skillId, comments, onAddComment, skillType }) => {
-  const [newComment, setNewComment] = useState({ author: '', content: '' });
+export const CommentSection = ({ skillId, comments, onAddComment, skillType, canPost }) => {
+  const [newComment, setNewComment] = useState({ content: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!newComment.author.trim() || !newComment.content.trim()) {
+    if (!newComment.content.trim()) {
       return;
     }
 
     setIsSubmitting(true);
-    
-    // Simulate brief loading
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    onAddComment(skillId, newComment.author.trim(), newComment.content.trim());
-    setNewComment({ author: '', content: '' });
-    setIsSubmitting(false);
+    try {
+      await onAddComment(skillId, newComment.content.trim());
+      setNewComment({ content: '' });
+    } catch {
+      // the board shows the error; keep what was typed
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatTimeAgo = (date) => {
@@ -60,20 +61,12 @@ export const CommentSection = ({ skillId, comments, onAddComment, skillType }) =
       )}
 
       {/* Add Comment Form */}
+      {canPost ? (
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <input
-            type="text"
-            placeholder="Your name"
-            value={newComment.author}
-            onChange={(e) => setNewComment(prev => ({ ...prev, author: e.target.value }))}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            required
-          />
-        </div>
         <div>
           <textarea
             placeholder="Leave a comment..."
+            aria-label="Comment"
             value={newComment.content}
             onChange={(e) => setNewComment(prev => ({ ...prev, content: e.target.value }))}
             rows={3}
@@ -83,7 +76,7 @@ export const CommentSection = ({ skillId, comments, onAddComment, skillType }) =
         </div>
         <button
           type="submit"
-          disabled={isSubmitting || !newComment.author.trim() || !newComment.content.trim()}
+          disabled={isSubmitting || !newComment.content.trim()}
           className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
             isOffer
               ? 'bg-green-500 hover:bg-green-600 text-white'
@@ -103,6 +96,9 @@ export const CommentSection = ({ skillId, comments, onAddComment, skillType }) =
           )}
         </button>
       </form>
+      ) : (
+        <p className="text-sm text-gray-500">Sign in with a verified email to comment.</p>
+      )}
     </div>
   );
 };
