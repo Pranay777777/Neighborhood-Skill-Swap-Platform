@@ -1,0 +1,40 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .config import DEV_SECRET, Settings, settings
+from .db import Base, engine
+from .routes import auth, requests, skills
+
+
+def check_secret(cfg: Settings) -> None:
+    """Never run a real database with the published dev signing key."""
+    if not cfg.database_url.startswith("sqlite") and (
+        cfg.jwt_secret == DEV_SECRET or len(cfg.jwt_secret) < 32
+    ):
+        raise RuntimeError("Set SWAP_JWT_SECRET to a random value of 32+ characters")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    check_secret(settings)
+    Base.metadata.create_all(engine)
+    yield
+
+
+app = FastAPI(title="Neighborhood Skill Swap API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(auth.router)
+app.include_router(skills.router)
+app.include_router(requests.router)
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
