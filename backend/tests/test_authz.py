@@ -165,3 +165,13 @@ def test_every_route_is_classified():
             if key not in owned and key not in PUBLIC:
                 unclassified.append(key)
     assert not unclassified, f"add these to OWNED or PUBLIC in test_authz.py: {unclassified}"
+
+
+def test_no_content_responses_have_no_body_or_content_type(client, world):
+    """A 204 labelled application/json gets compressed by the CDN in front of the live API,
+    and browsers then abort the empty body (the delete never resolved in the UI)."""
+    users, ids = world["users"], world["ids"]
+    r = client.delete(f"/comments/{ids['comment']}", headers=users["owner"])
+    assert r.status_code == 204
+    assert r.content == b""
+    assert "content-type" not in r.headers
