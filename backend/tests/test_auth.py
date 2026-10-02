@@ -292,3 +292,21 @@ def test_only_token_hashes_are_stored(client, session_factory):
 
 def test_hash_password_is_salted():
     assert hash_password("same password here") != hash_password("same password here")
+
+
+def test_documented_tradeoff_access_token_outlives_logout_until_expiry(client, make_user):
+    """README 'Known limitations': logout revokes refresh tokens, not issued access tokens,
+    which stay valid for at most access_ttl_minutes. If this changes, update the README."""
+    make_user("a@example.com")
+    tokens = login(client, "a@example.com")
+    client.post("/auth/logout", json={"refresh_token": tokens["refresh_token"]})
+    assert client.get("/auth/me", headers=auth(tokens)).status_code == 200
+    claims = jwt.decode(tokens["access_token"], settings.jwt_secret, algorithms=["HS256"])
+    assert claims["exp"] - claims["iat"] == settings.access_ttl_minutes * 60 == 15 * 60
+
+
+def test_documented_tradeoff_register_reveals_existing_email(client):
+    """README 'Known limitations': register answers 409 for a taken email (enumeration)."""
+    register(client, "a@example.com")
+    body = {"email": "a@example.com", "name": "x", "password": PASSWORD}
+    assert client.post("/auth/register", json=body).status_code == 409

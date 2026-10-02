@@ -72,6 +72,7 @@ docker compose up -d mailpit        # from the repo root; inbox at http://localh
 | Email verification | Single-use, 24 h, hashed token; unverified users can sign in but not post |
 | Password reset | Single-use, 30 min, hashed token; the response is identical for unknown emails; a reset revokes every session |
 | Startup guard | The API refuses to start against a real database with the dev signing key or a key under 32 characters |
+| Rate limits | Per client: login 10/minute, register 10/hour, forgot-password 5/hour; then 429 with `Retry-After`. Behind Render the client is the address its proxy appends to `X-Forwarded-For`, so a client cannot forge a fresh budget |
 
 ### Authorization (route → rule)
 
@@ -96,4 +97,16 @@ and fails if a new route is added without being classified here.
 ### Known limitations
 
 - Refresh tokens are returned in the JSON body, not an `HttpOnly` cookie.
-- No rate limiting on login or reset yet.
+- **Logout does not end an access token.** Logout revokes the refresh-token family, but an
+  access token already issued stays valid until it expires - up to 15 minutes. Access tokens
+  are checked by signature alone, with no database lookup; ending them early would need a
+  deny-list checked on every request. The short lifetime is the trade-off.
+- **Registration reveals whether an email is registered.** `POST /auth/register` answers 409
+  for an existing email, so it can be used to test addresses. The fix is to always answer
+  "check your email" and send the existing user a "you already have an account" mail instead;
+  that is not done yet because the live demo has no outbound mail, so the 409 is the only way
+  a visitor learns why sign-up failed. Rate limiting (10/hour per client) slows bulk probing.
+  Login and forgot-password do not have this problem: both answer identically for unknown
+  emails.
+- Rate-limit counters live in memory: they reset when the free instance restarts and would
+  not be shared between instances.

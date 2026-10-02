@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     mail_backend: str = "smtp"
     # Restore the demo accounts and their posts on every start (live demo, E2E).
     seed_demo: bool = False
+    # Rate limits per client on password and mail endpoints ("N/period", see slowapi).
+    rate_limit_enabled: bool = True
+    rate_limit_login: str = "10/minute"
+    rate_limit_register: str = "10/hour"
+    rate_limit_forgot: str = "5/hour"
+    # Set only behind a proxy that appends the client to X-Forwarded-For (Render).
+    trust_proxy: bool = False
 
     @field_validator("database_url")
     @classmethod

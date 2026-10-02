@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from ..db import get_db
 from ..deps import current_user
 from ..mailer import send_mail
 from ..models import EmailToken, RefreshToken, User
+from ..ratelimit import limiter
 from ..schemas import (
     ForgotIn,
     LoginIn,
@@ -95,7 +96,8 @@ def _consume(db: Session, raw: str, purpose: str) -> User:
 
 
 @router.post("/register", status_code=201, response_model=UserOut)
-def register(body: RegisterIn, db: Session = Depends(get_db)) -> User:
+@limiter.limit(lambda: settings.rate_limit_register)
+def register(request: Request, body: RegisterIn, db: Session = Depends(get_db)) -> User:
     user = User(
         email=body.email.lower(), name=body.name.strip(), password_hash=hash_password(body.password)
     )
@@ -125,7 +127,8 @@ def resend_verification(user: User = Depends(current_user), db: Session = Depend
 
 
 @router.post("/login", response_model=TokensOut)
-def login(body: LoginIn, db: Session = Depends(get_db)) -> TokensOut:
+@limiter.limit(lambda: settings.rate_limit_login)
+def login(request: Request, body: LoginIn, db: Session = Depends(get_db)) -> TokensOut:
     user = db.scalar(select(User).where(User.email == body.email.lower()))
     valid, needs_rehash = verify_password(
         body.password, user.password_hash if user else _DUMMY_HASH
@@ -182,7 +185,8 @@ def logout(body: RefreshIn, db: Session = Depends(get_db)) -> None:
 
 
 @router.post("/forgot-password", status_code=202)
-def forgot_password(body: ForgotIn, db: Session = Depends(get_db)) -> dict:
+@limiter.limit(lambda: settings.rate_limit_forgot)
+def forgot_password(request: Request, body: ForgotIn, db: Session = Depends(get_db)) -> dict:
     user = db.scalar(select(User).where(User.email == body.email.lower()))
     if user is not None:
         token = _email_token(db, user, "reset", timedelta(minutes=settings.reset_ttl_minutes))

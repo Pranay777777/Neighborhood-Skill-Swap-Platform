@@ -14,6 +14,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 from app import mailer  # noqa: E402
 from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.ratelimit import limiter  # noqa: E402
 
 PASSWORD = "correct horse battery"
 
@@ -35,6 +36,7 @@ def client(session_factory):
 
     app.dependency_overrides[get_db] = override
     mailer.outbox.clear()
+    limiter.reset()  # counters are per process; every test starts with a clean slate
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
