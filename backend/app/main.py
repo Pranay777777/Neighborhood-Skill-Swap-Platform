@@ -1,7 +1,9 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import DEV_SECRET, Settings, settings
 from .db import Base, SessionLocal, engine
@@ -27,7 +29,23 @@ async def lifespan(_: FastAPI):
     yield
 
 
+log = logging.getLogger("api")
+
 app = FastAPI(title="Neighborhood Skill Swap API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def json_500(request: Request, call_next):
+    """Turn an unhandled error into a JSON 500 *inside* the CORS middleware (registered
+    after this, so it wraps it). Starlette's own 500 skips CORS, so a browser saw only a
+    network error and the UI could not say what went wrong."""
+    try:
+        return await call_next(request)
+    except Exception:
+        log.exception("unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse({"detail": "Something went wrong on our side"}, status_code=500)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],

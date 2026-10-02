@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
 from ..deps import optional_user, verified_user
-from ..models import Comment, Skill, User
+from ..models import Comment, Skill, SwapRequest, User
 from ..schemas import CommentIn, CommentOut, SkillIn, SkillOut, SkillPatch
 
 router = APIRouter(tags=["skills"])
@@ -95,8 +96,19 @@ def update_skill(
 def delete_skill(
     skill_id: int, db: Session = Depends(get_db), user: User = Depends(verified_user)
 ) -> None:
-    db.delete(_owned_skill(db, skill_id, user))
-    db.commit()
+    _owned_skill(db, skill_id, user)
+    # A comment or swap request can land while this runs; Postgres then rejects the
+    # delete on the foreign key. The second pass sees and removes it too.
+    for _ in range(2):
+        try:
+            db.execute(delete(Comment).where(Comment.skill_id == skill_id))
+            db.execute(delete(SwapRequest).where(SwapRequest.skill_id == skill_id))
+            db.execute(delete(Skill).where(Skill.id == skill_id))
+            db.commit()
+            return
+        except IntegrityError:
+            db.rollback()
+    raise HTTPException(409, "The skill changed while it was being deleted; try again")
 
 
 @router.post("/skills/{skill_id}/comments", status_code=201, response_model=CommentOut)
@@ -109,7 +121,11 @@ def add_comment(
     _load(db, skill_id)
     comment = Comment(skill_id=skill_id, author_id=user.id, content=body.content.strip())
     db.add(comment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # the skill was deleted in the meantime
+        db.rollback()
+        raise HTTPException(404, "Skill not found") from None
     comment.author = user
     return _comment_out(comment)
 
