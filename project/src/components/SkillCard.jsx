@@ -1,9 +1,24 @@
 import React, { useState } from 'react';
 import { CommentSection } from './CommentSection';
-import { User, Calendar, Mail, MessageCircle, GraduationCap, BookOpen } from 'lucide-react';
+import { User, Calendar, Mail, MessageCircle, GraduationCap, BookOpen, Trash2, Handshake } from 'lucide-react';
 
-export const SkillCard = ({ skill, onAddComment }) => {
+export const SkillCard = ({ skill, user, onAddComment, onDelete, onRequest }) => {
   const [showComments, setShowComments] = useState(false);
+  const [requestText, setRequestText] = useState('');
+  const [requestSent, setRequestSent] = useState(false);
+  const isOwner = user?.id === skill.owner_id;
+  const canPost = Boolean(user?.email_verified);
+
+  const sendRequest = async (e) => {
+    e.preventDefault();
+    try {
+      await onRequest(skill.id, requestText.trim());
+      setRequestText('');
+      setRequestSent(true);
+    } catch {
+      // the board shows the error
+    }
+  };
 
   const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -16,7 +31,7 @@ export const SkillCard = ({ skill, onAddComment }) => {
   const isOffer = skill.type === 'offer';
 
   return (
-    <div className={`bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+    <article aria-label={skill.skill} className={`bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
       isOffer ? 'border-green-100 hover:border-green-200' : 'border-blue-100 hover:border-blue-200'
     }`}>
       <div className="p-6">
@@ -74,6 +89,37 @@ export const SkillCard = ({ skill, onAddComment }) => {
           </div>
         )}
 
+        {isOwner && (
+          <button
+            onClick={() => onDelete(skill.id).catch(() => {})}
+            aria-label={`Delete ${skill.skill}`}
+            className="mb-4 flex items-center gap-2 text-sm text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="w-4 h-4" /> Delete
+          </button>
+        )}
+
+        {canPost && !isOwner && (
+          requestSent ? (
+            <p role="status" className="mb-4 text-sm text-green-700">Swap request sent — only {skill.name} can see it.</p>
+          ) : (
+            <form onSubmit={sendRequest} className="mb-4 flex gap-2">
+              <input
+                value={requestText}
+                onChange={(e) => setRequestText(e.target.value)}
+                placeholder="Private message to propose a swap"
+                aria-label={`Swap request for ${skill.skill}`}
+                maxLength={1000}
+                required
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+              <button type="submit" className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-sm">
+                <Handshake className="w-4 h-4" /> Request
+              </button>
+            </form>
+          )
+        )}
+
         {/* Comments Toggle */}
         <button
           onClick={() => setShowComments(!showComments)}
@@ -99,9 +145,10 @@ export const SkillCard = ({ skill, onAddComment }) => {
             comments={skill.comments}
             onAddComment={onAddComment}
             skillType={skill.type}
+            canPost={canPost}
           />
         </div>
       )}
-    </div>
+    </article>
   );
 };
