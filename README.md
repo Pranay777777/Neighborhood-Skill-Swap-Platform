@@ -1,6 +1,11 @@
 # Neighborhood Skill Swap
 
+> A neighbourhood skill-swap board with the security work most portfolio full-stack apps skip:
+> rotating refresh tokens, tested authorization on every owned object, rate limits, E2E in CI.
+
 [![CI](https://github.com/Pranay777777/Neighborhood-Skill-Swap-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Pranay777777/Neighborhood-Skill-Swap-Platform/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Neighbours post skills they can teach or want to learn, comment, and send private swap
 requests. React frontend (`project/`) and FastAPI backend (`backend/`).
@@ -15,6 +20,46 @@ Postgres). **The free API sleeps after 15 minutes idle, so the first request can
 minute**; after that it is fast. The live site has no outbound mail, so sign in with a demo
 account below; the verification and reset flows are exercised end to end locally and in CI
 against Mailpit.
+
+## The problem
+
+A board where neighbours trade skills holds things people would not want strangers to change
+or read: their posts, contact details and private swap requests. The most common flaw in apps
+like this is an IDOR - user B reading or changing user A's object by guessing its id - and the
+usual auth shortcuts (long-lived tokens, fast password hashes, unlimited login attempts) make
+an account cheap to take over. This app is built around closing those, and proving it in tests.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    UI["React (Vite)<br/>static site"] -- "JWT access token<br/>(15 min, in memory)" --> API["FastAPI"]
+    UI -- "refresh token<br/>(rotated on every use)" --> API
+    API --> DB[("Postgres<br/>users, skills, comments,<br/>swap requests, token hashes")]
+    API -- "verify / reset links" --> MAIL["SMTP<br/>(Mailpit locally)"]
+    E2E["Playwright"] -. "CI: docker compose" .-> UI
+```
+
+Every route that touches an owned object checks ownership on the server; private swap
+requests answer 404 to anyone but the requester and the skill's owner, so ids cannot be
+probed. Refresh tokens are opaque and stored only as hashes; reusing a rotated one revokes its
+whole family. Details and the route-by-route rule table are under [Security](#security).
+
+## Design decisions and tradeoffs
+
+**Rotating opaque refresh tokens over long-lived JWTs.** A stolen refresh token is detected
+the moment either party uses it after the other. Cost: one database write per refresh, and
+false alarms: refreshes are serialised within a tab, but two tabs refreshing at the same moment
+look like reuse and sign the user out everywhere (a cross-tab lock would fix it; not done yet).
+
+**Stateless access tokens.** No database lookup per request. Cost: logout cannot end an
+access token early; it lives up to 15 minutes (documented and pinned by a test below).
+
+**404 instead of 403 for private objects.** Hides whether an id exists. Cost: a confused user
+gets "not found" rather than "not yours"; public objects still answer 403.
+
+**In-memory rate limits.** No extra service on the free tier. Cost: counters reset on restart
+and would not be shared across instances.
 
 ## Demo accounts
 
