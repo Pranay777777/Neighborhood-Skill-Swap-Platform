@@ -19,17 +19,17 @@ class Case:
     method: str
     path: str  # {skill}, {comment}, {request} are filled from the fixture
     rule: str  # the README's route -> rule table is this column
-    owner: str  # which fixture user may do it: "alice" (skill owner) | "carol" (requester)
+    actor: str  # the fixture user allowed to do it: "owner" (of the skill) or "requester"
     body: dict | None = None
     ok: int = 200
 
 
 OWNED = [
-    Case("PATCH", "/skills/{skill}", "skill owner only", "alice", {"description": "hacked"}),
-    Case("DELETE", "/skills/{skill}", "skill owner only", "alice", ok=204),
-    Case("DELETE", "/comments/{comment}", "comment author only", "alice", ok=204),
-    Case("GET", "/requests/{request}", "requester or skill owner", "carol"),
-    Case("PATCH", "/requests/{request}", "skill owner only", "alice", {"status": "accepted"}),
+    Case("PATCH", "/skills/{skill}", "skill owner only", "owner", {"description": "hacked"}),
+    Case("DELETE", "/skills/{skill}", "skill owner only", "owner", ok=204),
+    Case("DELETE", "/comments/{comment}", "comment author only", "owner", ok=204),
+    Case("GET", "/requests/{request}", "requester or skill owner", "requester"),
+    Case("PATCH", "/requests/{request}", "skill owner only", "owner", {"status": "accepted"}),
 ]
 
 # Routes that take an id or act on "me" but are open by design (no owned object to leak).
@@ -44,22 +44,24 @@ PUBLIC = {
 
 @pytest.fixture()
 def world(client, make_user):
-    alice, _ = make_user("alice@example.com", "Alice")
-    bob, _ = make_user("bob@example.com", "Bob")  # the attacker
-    carol, _ = make_user("carol@example.com", "Carol")
+    owner, _ = make_user("owner@example.com", "Owner")
+    intruder, _ = make_user("intruder@example.com", "Intruder")  # the attacker
+    requester, _ = make_user("requester@example.com", "Requester")
     skill = client.post(
         "/skills",
-        headers=alice,
+        headers=owner,
         json={"skill": "Guitar", "type": "offer", "description": "Beginners", "contact": "a@x"},
     ).json()["id"]
     comment = client.post(
-        f"/skills/{skill}/comments", headers=alice, json={"content": "Weekends only"}
+        f"/skills/{skill}/comments", headers=owner, json={"content": "Weekends only"}
     ).json()["id"]
     request = client.post(
-        f"/skills/{skill}/requests", headers=carol, json={"message": "Private: my number is 555"}
+        f"/skills/{skill}/requests",
+        headers=requester,
+        json={"message": "Private: my number is 555"},
     ).json()["id"]
     return {
-        "users": {"alice": alice, "bob": bob, "carol": carol},
+        "users": {"owner": owner, "intruder": intruder, "requester": requester},
         "ids": {"skill": skill, "comment": comment, "request": request},
     }
 
@@ -72,14 +74,14 @@ def _snapshot(client, world) -> dict:
     ids, users = world["ids"], world["users"]
     return {
         "skill": client.get(f"/skills/{ids['skill']}").json(),
-        "request": client.get(f"/requests/{ids['request']}", headers=users["alice"]).json(),
+        "request": client.get(f"/requests/{ids['request']}", headers=users["owner"]).json(),
     }
 
 
 @pytest.mark.parametrize("case", OWNED, ids=lambda c: f"{c.method} {c.path}")
 def test_other_user_is_refused_and_nothing_changes(client, world, case):
     before = _snapshot(client, world)
-    r = _call(client, case, world["users"]["bob"], world["ids"])
+    r = _call(client, case, world["users"]["intruder"], world["ids"])
     assert r.status_code in (403, 404), r.text
     assert "555" not in r.text  # the private message never leaks
     assert _snapshot(client, world) == before
@@ -93,43 +95,43 @@ def test_anonymous_is_refused(client, world, case):
 
 @pytest.mark.parametrize("case", OWNED, ids=lambda c: f"{c.method} {c.path}")
 def test_rightful_user_succeeds(client, world, case):
-    r = _call(client, case, world["users"][case.owner], world["ids"])
+    r = _call(client, case, world["users"][case.actor], world["ids"])
     assert r.status_code == case.ok, r.text
 
 
 def test_requester_can_read_but_not_answer_own_request(client, world):
-    carol, rid = world["users"]["carol"], world["ids"]["request"]
-    assert client.get(f"/requests/{rid}", headers=carol).status_code == 200
-    r = client.patch(f"/requests/{rid}", headers=carol, json={"status": "accepted"})
+    requester, rid = world["users"]["requester"], world["ids"]["request"]
+    assert client.get(f"/requests/{rid}", headers=requester).status_code == 200
+    r = client.patch(f"/requests/{rid}", headers=requester, json={"status": "accepted"})
     assert r.status_code == 403
 
 
 def test_missing_and_forbidden_requests_look_identical(client, world):
-    bob = world["users"]["bob"]
-    forbidden = client.get(f"/requests/{world['ids']['request']}", headers=bob)
-    missing = client.get("/requests/999999", headers=bob)
+    intruder = world["users"]["intruder"]
+    forbidden = client.get(f"/requests/{world['ids']['request']}", headers=intruder)
+    missing = client.get("/requests/999999", headers=intruder)
     assert forbidden.status_code == missing.status_code == 404
     assert forbidden.json() == missing.json()
 
 
 def test_my_requests_only_lists_my_own(client, world):
     users = world["users"]
-    assert client.get("/me/requests", headers=users["bob"]).json() == []
-    assert len(client.get("/me/requests", headers=users["alice"]).json()) == 1  # received
-    assert len(client.get("/me/requests", headers=users["carol"]).json()) == 1  # sent
+    assert client.get("/me/requests", headers=users["intruder"]).json() == []
+    assert len(client.get("/me/requests", headers=users["owner"]).json()) == 1  # received
+    assert len(client.get("/me/requests", headers=users["requester"]).json()) == 1  # sent
 
 
 def test_contact_details_hidden_from_anonymous(client, world):
     sid = world["ids"]["skill"]
     assert client.get(f"/skills/{sid}").json()["contact"] is None
-    signed_in = client.get(f"/skills/{sid}", headers=world["users"]["bob"]).json()
+    signed_in = client.get(f"/skills/{sid}", headers=world["users"]["intruder"]).json()
     assert signed_in["contact"] == "a@x"
 
 
 def test_owner_cannot_request_own_skill(client, world):
     r = client.post(
         f"/skills/{world['ids']['skill']}/requests",
-        headers=world["users"]["alice"],
+        headers=world["users"]["owner"],
         json={"message": "hi"},
     )
     assert r.status_code == 400
@@ -137,9 +139,9 @@ def test_owner_cannot_request_own_skill(client, world):
 
 def test_deleting_a_skill_removes_its_private_requests(client, world):
     users, ids = world["users"], world["ids"]
-    assert client.delete(f"/skills/{ids['skill']}", headers=users["alice"]).status_code == 204
-    assert client.get(f"/requests/{ids['request']}", headers=users["carol"]).status_code == 404
-    assert client.get("/me/requests", headers=users["carol"]).json() == []
+    assert client.delete(f"/skills/{ids['skill']}", headers=users["owner"]).status_code == 204
+    assert client.get(f"/requests/{ids['request']}", headers=users["requester"]).status_code == 404
+    assert client.get("/me/requests", headers=users["requester"]).json() == []
 
 
 def test_every_route_is_classified():
