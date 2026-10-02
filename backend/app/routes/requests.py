@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -46,7 +47,11 @@ def create_request(
         raise HTTPException(400, "You cannot request your own skill")
     r = SwapRequest(skill_id=skill_id, requester_id=user.id, message=body.message.strip())
     db.add(r)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # the skill was deleted in the meantime
+        db.rollback()
+        raise HTTPException(404, "Skill not found") from None
     return _out(r)
 
 

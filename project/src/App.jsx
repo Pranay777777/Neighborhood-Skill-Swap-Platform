@@ -24,7 +24,6 @@ function Board() {
     try {
       setSkills((await api('/skills')).map(withDates));
       setRequests(user ? await api('/me/requests') : []);
-      setError(null);
     } catch (err) {
       setError(err.message);
     }
@@ -34,7 +33,9 @@ function Board() {
     if (ready) load();
   }, [ready, load]);
 
+  // An action's error stays up until the next action; a reload must not wipe it.
   const run = (fn) => async (...args) => {
+    setError(null);
     try {
       await fn(...args);
       await load();

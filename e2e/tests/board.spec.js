@@ -22,6 +22,7 @@ test('demo account signs in, posts a skill, comments and deletes it', async ({ p
   await card.getByLabel('Comment').fill('Bring your own flour.');
   await card.getByRole('button', { name: 'Post Comment' }).click();
   await expect(card.getByText('Bring your own flour.')).toBeVisible();
+  await expect(card.getByRole('button', { name: '1 comment' })).toBeVisible(); // saved and reloaded
 
   await card.getByRole('button', { name: `Delete ${title}` }).click();
   await expect(card).toHaveCount(0);
